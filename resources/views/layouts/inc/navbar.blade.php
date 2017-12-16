@@ -24,11 +24,11 @@
 			<!-- Left Side Of Navbar -->
 			<ul class="nav navbar-nav">
 				@guest
-				<li class="active">
+				<li>
 					<a href="/">Home</a>
 				</li>
 				@else
-				<li class="active">
+				<li>
 					<a href="/dashboard">Dashboard</a>
 				</li>
 				@endguest

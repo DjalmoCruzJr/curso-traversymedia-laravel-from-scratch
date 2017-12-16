@@ -3,11 +3,14 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use App\Post;
 
 class PostsController extends Controller
 {
     private $_paginationSize = 3;
+    private $_storePath = 'public/images';
+    private $_fileNameToStore = 'noimage.jpeg';
 
     public function __construct()
     {
@@ -27,12 +30,26 @@ class PostsController extends Controller
     public function store(Request $request) {
         $this->validate($request, [
             'title' => 'required',
-            'body' => 'required' 
+            'body' => 'required',
+            'thumbnail' => 'image|nullable|max:1999'
         ]);
 
+        // Handle File Upload
+        if($request->hasFile('thumbnail')) {
+            $fileNameWithExt = $request->file('thumbnail')->getClientOriginalName();
+            $fileName = pathinfo($fileNameWithExt, PATHINFO_FILENAME);
+            $extension = $request->file('thumbnail')->getClientOriginalExtension();
+            $this->_fileNameToStore = $fileName . '_' . time() . '.'. $extension;
+            $path = $request->file('thumbnail')->storeAs($this->_storePath, $this->_fileNameToStore);
+        }  else {
+            $this->_fileNameToStore = 'noimage.jpeg';
+        }
+
+        // Save Post
         $post = new Post();
         $post->title = $request->input('title');
         $post->body = $request->input('body');
+        $post->thumbnail = $this->_fileNameToStore;
         $post->user_id = auth()->user()->id;
         $post->save();
 
@@ -61,9 +78,24 @@ class PostsController extends Controller
             'body' => 'required' 
         ]);
 
+        // Handle File Upload
+        if($request->hasFile('thumbnail')) {
+            $fileNameWithExt = $request->file('thumbnail')->getClientOriginalName();
+            $fileName = pathinfo($fileNameWithExt, PATHINFO_FILENAME);
+            $extension = $request->file('thumbnail')->getClientOriginalExtension();
+            $this->_fileNameToStore = $fileName . '_' . time() . '.'. $extension;
+            $path = $request->file('thumbnail')->storeAs($this->_storePath, $this->_fileNameToStore);
+        } else {
+            $this->_fileNameToStore = 'noimage.jpeg';
+        }
+
+        // Save Post
         $post = Post::find($id);
         $post->title = $request->input('title');
         $post->body= $request->input('body');
+        if($request->hasFile('thumbnail')) {
+            $post->thumbnail = $this->_fileNameToStore;
+        }
         $post->save();
 
         return redirect('/posts')->with('success', 'Post updated successfully');
@@ -75,6 +107,11 @@ class PostsController extends Controller
         if(auth()->user()->id !== $post->user_id) {
             $error = 'Sorry '.auth()->user()->name.'! Unauthorized Action.';
             return redirect('/posts')->with('errors', [$error]);
+        }
+
+        // Delete Post Image
+        if($post->thumbnail !== 'noimage.jpeg') {
+            Storage::delete($this->_storePath .'/'. $post->thumbnail);
         }
 
         $message = "<strong>".$post->title . "</strong>". ' deleted successfully';
